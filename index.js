@@ -66,6 +66,32 @@ async function run() {
             res.send({ deliveryMan });
         })
 
+        //* Make a User Admin
+        app.patch('/users/admin/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    role: 'admin'
+                }
+            }
+            const result = await userCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        });
+
+        //* Make a User Delivery Man
+        app.patch('/users/delivery-man/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    role: 'deliveryMan'
+                }
+            }
+            const result = await userCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        })
+
         app.get('/deliverymans' , async(req, res) => {
             const result = await userCollection.find({ role: 'deliveryMan' }).toArray();
             res.send(result);
@@ -87,6 +113,23 @@ async function run() {
             const result = await userCollection.insertOne(user);
             res.send(result)
 
+        })
+
+
+        app.patch('/update-booking/:email', async (req, res) => {
+            const query = { email: req.params.email };
+            const options = { upsert: true };
+            const updated = req.body;
+            const updateDoc = {
+                $set: {
+                    phone: updated.phone,
+                },
+                $inc: {
+                    order: 1
+                }
+            }
+            const result = await userCollection.updateOne(query, updateDoc, options);
+            res.send(result)
         })
 
 
@@ -116,6 +159,7 @@ async function run() {
             res.send(result)
 
         })
+        
         app.get('/allparcels/:id' , async ( req, res) => {
             const id = req.params.id;
             const query = { _id : new ObjectId(id)} 
