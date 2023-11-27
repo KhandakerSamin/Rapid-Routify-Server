@@ -42,7 +42,7 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/users/admin/:email',  async (req, res) => {
+        app.get('/users/admin/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
             const user = await userCollection.findOne(query);
@@ -53,7 +53,7 @@ async function run() {
             res.send({ admin });
         })
 
-        app.get('/users/deliveryMan/:email',  async (req, res) => {
+        app.get('/users/deliveryMan/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
             // console.log(query);
@@ -64,6 +64,13 @@ async function run() {
                 deliveryMan = user?.role === 'deliveryMan'
             }
             res.send({ deliveryMan });
+        })
+
+        app.get('/users/:email', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: req.params.email }
+            const user = await userCollection.findOne(query);
+            res.send(user)
         })
 
         //* Make a User Admin
@@ -92,12 +99,12 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/deliverymans' , async(req, res) => {
+        app.get('/deliverymans', async (req, res) => {
             const result = await userCollection.find({ role: 'deliveryMan' }).toArray();
             res.send(result);
         })
 
-        
+
 
         app.post('/users', async (req, res) => {
             const user = req.body;
@@ -133,6 +140,21 @@ async function run() {
         })
 
 
+        app.patch('/delivered-booking/:email', async (req, res) => {
+            const query = { email: req.params.email };
+            const options = { upsert: true };
+            const updated = req.body;
+            const updateDoc = {
+
+                $inc: {
+                    delivered: 1
+                }
+            }
+            const result = await userCollection.updateOne(query, updateDoc, options);
+            res.send(result)
+        })
+
+
         // ! Parcel related API 
 
         app.post('/parcels', async (req, res) => {
@@ -145,69 +167,113 @@ async function run() {
             const result = await parcelCollection.find().toArray()
             res.send(result);
         })
-        app.get('/parcels', async (req, res) => {
-            const email = req.query.email;
-            const query = { email: email }
-            const result = await parcelCollection.find(query).toArray()
-            res.send(result);
+
+        // app.get('/parcels/:email', async (req, res) => {
+        //     const email = req.query.email;
+        //     const query = { email: email }
+        //     const result = await parcelCollection.find(query).toArray()
+        //     res.send(result);
+        // })
+
+        app.get('/userBooking', async (req, res) => {
+            let query = {}
+            if (req.query?.email) {
+                query = { email: req.query.email }
+            }
+            const result = await parcelCollection.find(query).toArray();
+            res.send(result)
         })
 
-        app.get('/parcels/:id' , async ( req, res) => {
+
+        app.get('/delivery-man/:deliveryManId', async (req, res) => {
+            const deliveryManId = req.params.deliveryManId
+            const query = { deliveryManId: req.params.deliveryManId };
+            const result = await parcelCollection.find(query).toArray();
+            res.send(result)
+        })
+
+        app.get('/parcels/:id', async (req, res) => {
             const id = req.params.id;
-            const query = { _id : new ObjectId(id)} 
+            const query = { _id: new ObjectId(id) }
             const result = await parcelCollection.findOne(query);
             res.send(result)
 
         })
-        
-        app.get('/allparcels/:id' , async ( req, res) => {
+
+        app.get('/allparcels/:id', async (req, res) => {
             const id = req.params.id;
-            const query = { _id : new ObjectId(id)} 
+            const query = { _id: new ObjectId(id) }
             const result = await parcelCollection.findOne(query);
             res.send(result)
         })
 
-        app.patch('/parcels/:id' , async ( req, res) => {
+        app.patch('/parcels/:id', async (req, res) => {
             const item = req.body;
             const id = req.params.id;
-            const filter = { _id : new ObjectId(id)}
+            const filter = { _id: new ObjectId(id) }
             const updatedDoc = {
-                $set:{
+                $set: {
                     phone: item.phone,
                     address: item.address,
                     parcelType: item.parcelType,
                     weight: item.weight,
                     receiver: item.receiver,
-                    receiverPhone : item.receiverPhone,
+                    receiverPhone: item.receiverPhone,
                     requestedDate: item.requestedDate,
                     price: item.price,
                     latitude: item.latitude,
                     longitude: item.longitude
                 }
             }
-            const result  = await parcelCollection.updateOne(filter, updatedDoc)
+            const result = await parcelCollection.updateOne(filter, updatedDoc)
             res.send(result);
         })
 
-        app.patch('/allparcels/:id' , async ( req, res) => {
+        app.patch('/allparcels/:id', async (req, res) => {
             const item = req.body;
             const id = req.params.id;
             console.log(id);
-            const filter = { _id : new ObjectId(id)}
+            const filter = { _id: new ObjectId(id) }
             const updatedDoc = {
-                $set:{
-                    status:'On The Way',
+                $set: {
+                    status: 'On The Way',
                     deliveryManId: item.deliveryManId,
-                    aproximateDate: item.aproximateDate
+                    aproximateDate: item.approximateDate
                 }
             }
-            const result  = await parcelCollection.updateOne(filter, updatedDoc)
+            const result = await parcelCollection.updateOne(filter, updatedDoc)
             res.send(result);
         })
 
-        app.delete('/parcels/:id' , async(req, res) => {
-            const id = req.params.id ;
-            const query = { _id : new ObjectId(id)}
+        //* Make a parcel  Deliverded
+
+        app.patch('/all-parcels/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    status: 'Delivered'
+                }
+            }
+            const result = await parcelCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        })
+
+        app.patch('/all-parcel/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    status: 'Cenceled'
+                }
+            }
+            const result = await parcelCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        })
+
+        app.delete('/parcels/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
             const result = await parcelCollection.deleteOne(query);
             res.send(result);
         })
