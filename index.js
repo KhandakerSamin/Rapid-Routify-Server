@@ -33,9 +33,12 @@ async function run() {
 
         const userCollection = client.db('RapidRoutifyDB').collection('users');
         const parcelCollection = client.db('RapidRoutifyDB').collection('parcels');
+        const reviewCollection = client.db('RapidRoutifyDB').collection('reviews');
 
 
         // !  User Related Api : 
+
+
 
         app.get('/users', async (req, res) => {
             const result = await userCollection.find().toArray()
@@ -87,7 +90,7 @@ async function run() {
         });
 
         //* Make a User Delivery Man
-        
+
         app.patch('/users/delivery-man/:id', async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
@@ -100,11 +103,30 @@ async function run() {
             res.send(result);
         })
 
+
+
+        // * Get all delivery man
+
         app.get('/deliverymans', async (req, res) => {
             const result = await userCollection.find({ role: 'deliveryMan' }).toArray();
             res.send(result);
         })
 
+        // ? Get Top delivery man
+
+        app.get('/deliveryMans-top',  async (req, res) => {
+
+            let sortObj = {}
+            const sortField = req.query.sortField;
+            const sortOrder = req.query.sortOrder;
+      
+            if (sortField && sortOrder) {
+              sortObj[sortField] = sortOrder
+            }
+            const result = await userCollection.find({ role: 'deliveryMan' }).sort(sortObj).toArray()
+            res.send(result)
+          })
+      
 
 
         app.post('/users', async (req, res) => {
@@ -168,13 +190,6 @@ async function run() {
             const result = await parcelCollection.find().toArray()
             res.send(result);
         })
-
-        // app.get('/parcels/:email', async (req, res) => {
-        //     const email = req.query.email;
-        //     const query = { email: email }
-        //     const result = await parcelCollection.find(query).toArray()
-        //     res.send(result);
-        // })
 
         app.get('/userBooking', async (req, res) => {
             let query = {}
@@ -246,6 +261,34 @@ async function run() {
             res.send(result);
         })
 
+
+        app.get('/parcels', async (req, res) => {
+            try {
+                const { startDate, endDate } = req.query;
+
+                console.log('Received startDate:', startDate);
+                console.log('Received endDate:', endDate);
+
+                let query = {};
+
+                if (startDate && endDate) {
+                    query.approximateDate = {
+                        $gte: new Date(startDate),
+                        $lte: new Date(endDate),
+                    };
+                }
+
+                const parcels = await parcelCollection.find(query).toArray();
+
+                console.log('Found parcels:', parcels);
+
+                res.json(parcels);
+            } catch (error) {
+                console.error(error);
+                res.status(500).json({ error: 'Internal Server Error' });
+            }
+        });
+
         //* Make a parcel  Deliverded
 
         app.patch('/all-parcels/:id', async (req, res) => {
@@ -276,6 +319,16 @@ async function run() {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await parcelCollection.deleteOne(query);
+            res.send(result);
+        })
+
+
+        //* reviews api  : 
+
+        
+        app.post('/reviews', async (req, res) => {
+            const newReview = req.body;
+            const result = await reviewCollection.insertOne(newReview);
             res.send(result);
         })
 
