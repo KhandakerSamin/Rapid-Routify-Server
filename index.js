@@ -3,6 +3,8 @@ const cors = require('cors');
 const port = process.env.PORT || 5000;
 require("dotenv").config()
 const app = express()
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
 
 
 // middleware
@@ -34,6 +36,53 @@ async function run() {
         const userCollection = client.db('RapidRoutifyDB').collection('users');
         const parcelCollection = client.db('RapidRoutifyDB').collection('parcels');
         const reviewCollection = client.db('RapidRoutifyDB').collection('reviews');
+
+
+
+        // // ! jwt related api 
+
+        // app.post('/jwt', async (req, res) => {
+        //     const user = req.body;
+        //     const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        //         expiresIn: '1h'
+        //     })
+        //     res.send({ token });
+        // })
+
+
+
+        // // ! middlewares 
+
+        // const varifyToken = (req, res, next) => {
+        //     console.log('inside varify token', req.headers.authorization);
+        //     if (!req.headers.authorization) {
+        //         return res.status(401).send({ message: 'Unauthorized Access' })
+        //     }
+        //     const token = req.headers.authorization.split(' ')[1];
+        //     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        //         if (err) {
+        //             return res.status(401).send({ message: 'Unauthorized Access' })
+        //         }
+        //         req.decoded = decoded;
+        //         next();
+        //     })
+
+        // }
+
+
+        // const varifyAdmin = async (req, res, next) => {
+        //     const email = req.decoded.email;
+        //     const query = { email: email }
+        //     const user = await userCollection.findOne(query);
+        //     const isAdmin = user?.role === 'admin';
+        //     if (!isAdmin) {
+        //         return res.status(403).send({ message: 'forbidden access' });
+        //     }
+        //     next()
+        // }
+
+
+
 
 
         // !  User Related Api : 
@@ -69,12 +118,16 @@ async function run() {
             res.send({ deliveryMan });
         })
 
+        // ! userid by email 
+
         app.get('/users/:email', async (req, res) => {
             const email = req.query.email;
             const query = { email: req.params.email }
             const user = await userCollection.findOne(query);
             res.send(user)
         })
+
+
 
         //* Make a User Admin
         app.patch('/users/admin/:id', async (req, res) => {
@@ -114,19 +167,19 @@ async function run() {
 
         // ? Get Top delivery man
 
-        app.get('/deliveryMans-top',  async (req, res) => {
+        app.get('/deliveryMans-top', async (req, res) => {
 
             let sortObj = {}
             const sortField = req.query.sortField;
             const sortOrder = req.query.sortOrder;
-      
+
             if (sortField && sortOrder) {
-              sortObj[sortField] = sortOrder
+                sortObj[sortField] = sortOrder
             }
             const result = await userCollection.find({ role: 'deliveryMan' }).sort(sortObj).toArray()
             res.send(result)
-          })
-      
+        })
+
 
 
         app.post('/users', async (req, res) => {
@@ -262,29 +315,60 @@ async function run() {
         })
 
 
+        // app.get('/parcels', async (req, res) => {
+        //     try {
+        //         const { startDate, endDate } = req.query;
+
+        //         console.log('Received startDate:', startDate);
+        //         console.log('Received endDate:', endDate);
+
+        //         let query = {};
+
+        //         if (startDate && endDate) {
+        //             query.approximateDate = {
+        //                 $gte: new Date(startDate),
+        //                 $lte: new Date(endDate),
+        //             };
+        //         }
+
+        //         const parcels = await parcelCollection.find(query).toArray();
+
+        //         console.log('Found parcels:', parcels);
+
+        //         res.json(parcels);
+        //     } catch (error) {
+        //         console.error(error);
+        //         res.status(500).json({ error: 'Internal Server Error' });
+        //     }
+        // });
+
         app.get('/parcels', async (req, res) => {
             try {
-                const { startDate, endDate } = req.query;
+                const database = client.db('your-database-name'); // Replace with your actual database name
+                const parcels = await database.collection('parcels').find().toArray();
+                res.json(parcels);
+            } catch (error) {
+                console.error('Error getting parcels:', error);
+                res.status(500).json({ error: 'Internal Server Error' });
+            }
+        });
 
-                console.log('Received startDate:', startDate);
-                console.log('Received endDate:', endDate);
+        // Example route to search parcels based on date range
+        app.post('/parcels/search', async (req, res) => {
+            const { startDate, endDate } = req.body;
 
-                let query = {};
-
-                if (startDate && endDate) {
-                    query.approximateDate = {
-                        $gte: new Date(startDate),
-                        $lte: new Date(endDate),
-                    };
-                }
-
-                const parcels = await parcelCollection.find(query).toArray();
-
-                console.log('Found parcels:', parcels);
+            try {
+                const database = client.db('your-database-name'); // Replace with your actual database name
+                const parcels = await database.collection('parcels').find({
+                    approximateDate: {
+                        $gte: startDate,
+                        $lte: endDate,
+                    },
+                }).toArray();
 
                 res.json(parcels);
             } catch (error) {
-                console.error(error);
+                console.error('Error searching parcels:', error);
                 res.status(500).json({ error: 'Internal Server Error' });
             }
         });
@@ -325,13 +409,41 @@ async function run() {
 
         //* reviews api  : 
 
-        
+
         app.post('/reviews', async (req, res) => {
             const newReview = req.body;
             const result = await reviewCollection.insertOne(newReview);
             res.send(result);
         })
 
+
+        // ! review by id : 
+
+        app.get('/reviews/:deliveryManId', async (req, res) => {
+            const deliveryManId = req.params.deliveryManId
+            const query = { deliveryManId: req.params.deliveryManId };
+            const result = await reviewCollection.find(query).toArray();
+            res.send(result)
+        })
+
+
+        // ! payment related api : 
+
+
+
+        app.post("/create-payment-intent", async (req, res) => {
+            const { price } = req.body;
+            const amount = parseInt(price*100);
+            console.log(amount);
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                payment_method_types : ["card"],               
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            })
+        })
 
 
 
