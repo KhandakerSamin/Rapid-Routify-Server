@@ -36,6 +36,7 @@ async function run() {
         const userCollection = client.db('RapidRoutifyDB').collection('users');
         const parcelCollection = client.db('RapidRoutifyDB').collection('parcels');
         const reviewCollection = client.db('RapidRoutifyDB').collection('reviews');
+        const textCollection = client.db('RapidRoutifyDB').collection('texts');
 
 
 
@@ -413,6 +414,18 @@ async function run() {
         app.post('/reviews', async (req, res) => {
             const newReview = req.body;
             const result = await reviewCollection.insertOne(newReview);
+            res.send(result);
+        })
+
+
+        app.post('/userText', async (req, res) => {
+            const newText = req.body;
+            const result = await textCollection.insertOne(newText);
+            res.send(result);
+        })
+
+        app.get('/userText', async (req, res) => {
+            const result = await textCollection.find().toArray();
             res.send(result);
         })
 
